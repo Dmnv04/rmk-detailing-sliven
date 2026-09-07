@@ -333,7 +333,9 @@
     padding: 10px;
     cursor: zoom-in;
   }
-  .video-card-lg video {
+  .video-swipe video {
+    flex: 0 0 100%;
+    scroll-snap-align: center;
     width: 100%;
     height: 420px;
     object-fit: cover;
@@ -341,7 +343,7 @@
     pointer-events: none;
   }
   @media (max-width: 600px) {
-    .video-card-lg video { height: 320px; }
+    .video-swipe video { height: 320px; }
   }
   .modal-proj-card img { width: 100%; height: 130px; object-fit: cover; }
   .modal-proj-cap { padding: 8px 2px 0; font-size: 0.72rem; color: var(--text-dim); text-align: center; }
@@ -981,13 +983,13 @@
       <div class="modal-section">
         <h3 class="h3">Видео</h3>
         <div class="video-gallery">
-          <div class="video-card-lg" data-video-src="farove-mercedes.mp4" data-video-cap="Mercedes C220" tabindex="0" role="button" aria-label="Отвори видео: Mercedes C220">
-            <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-mercedes.mp4"></video>
-            <div class="modal-proj-cap">Mercedes C220</div>
-          </div>
-          <div class="video-card-lg" data-video-src="farove-rav4.mp4" data-video-cap="Toyota RAV4" tabindex="0" role="button" aria-label="Отвори видео: Toyota RAV4">
-            <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-rav4.mp4"></video>
-            <div class="modal-proj-cap">Toyota RAV4</div>
+          <div class="video-card-lg" id="videoCard">
+            <div class="proj-swipe video-swipe" data-swipe>
+              <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-mercedes.mp4" data-cap="Mercedes C220"></video>
+              <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-rav4.mp4" data-cap="Toyota RAV4"></video>
+            </div>
+            <div class="proj-dots"><span class="proj-dot active"></span><span class="proj-dot"></span></div>
+            <div class="modal-proj-cap" id="videoCap">Mercedes C220</div>
           </div>
         </div>
       </div>
@@ -1394,12 +1396,18 @@
   (function() {
     var strips = document.querySelectorAll('[data-swipe]');
     strips.forEach(function(strip) {
-      var dotsWrap = strip.parentElement.querySelector('.proj-dots');
+      var card = strip.parentElement;
+      var dotsWrap = card.querySelector('.proj-dots');
+      var capEl = card.querySelector('.modal-proj-cap');
       if (!dotsWrap) return;
       var dots = dotsWrap.querySelectorAll('.proj-dot');
       strip.addEventListener('scroll', function() {
         var idx = Math.round(strip.scrollLeft / strip.clientWidth);
         dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
+        var slides = strip.children;
+        if (capEl && slides[idx] && slides[idx].hasAttribute('data-cap')) {
+          capEl.textContent = slides[idx].getAttribute('data-cap');
+        }
       });
     });
   })();
@@ -1414,8 +1422,17 @@
     var lastFocused = null;
 
     function openVideoLightbox(card) {
-      var src = card.getAttribute('data-video-src');
-      var cap = card.getAttribute('data-video-cap') || '';
+      var strip = card.querySelector('[data-swipe]');
+      var src, cap;
+      if (strip) {
+        var idx = Math.round(strip.scrollLeft / strip.clientWidth) || 0;
+        var activeVideo = strip.children[idx] || strip.children[0];
+        src = activeVideo.getAttribute('src');
+        cap = activeVideo.getAttribute('data-cap') || '';
+      } else {
+        src = card.getAttribute('data-video-src');
+        cap = card.getAttribute('data-video-cap') || '';
+      }
       vlbVideo.src = src;
       vlbCap.textContent = cap;
       lastFocused = document.activeElement;
@@ -1434,7 +1451,9 @@
     }
 
     cards.forEach(function(card) {
-      card.addEventListener('click', function() { openVideoLightbox(card); });
+      card.addEventListener('click', function() {
+        openVideoLightbox(card);
+      });
       card.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
