@@ -319,16 +319,29 @@
   .modal-proj-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .modal-proj-card { background: var(--panel); border: 1px solid var(--line); padding: 6px; }
   .modal-proj-card[data-lb-group] { cursor: zoom-in; }
-  .modal-video-card { cursor: default; }
-  .modal-video-card video {
+  .video-gallery {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+  .video-card-lg {
     width: 100%;
-    height: 130px;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 10px;
+    cursor: zoom-in;
+  }
+  .video-card-lg video {
+    width: 100%;
+    height: 420px;
     object-fit: cover;
     display: block;
     pointer-events: none;
   }
   @media (max-width: 600px) {
-    .modal-video-card video { height: 200px; }
+    .video-card-lg video { height: 320px; }
   }
   .modal-proj-card img { width: 100%; height: 130px; object-fit: cover; }
   .modal-proj-cap { padding: 8px 2px 0; font-size: 0.72rem; color: var(--text-dim); text-align: center; }
@@ -573,6 +586,43 @@
     border-radius: 2px;
   }
   .lightbox-close:hover { border-color: var(--gold); color: var(--gold-bright); }
+
+  /* ---------- VIDEO LIGHTBOX ---------- */
+  .video-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: rgba(8,8,9,0.92);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease;
+  }
+  .video-lightbox.open { opacity: 1; visibility: visible; }
+  .video-lightbox-inner {
+    position: relative;
+    max-width: 640px;
+    width: 100%;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: scale(0.96);
+    transition: transform 0.25s ease;
+  }
+  .video-lightbox.open .video-lightbox-inner { transform: scale(1); }
+  .video-lightbox video {
+    max-height: 80vh;
+    width: auto;
+    max-width: 100%;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    display: block;
+    pointer-events: none;
+  }
   .lightbox-zoom-controls {
     position: absolute;
     top: -44px;
@@ -839,6 +889,14 @@
   </div>
 </footer>
 
+<div class="video-lightbox" id="videoLightbox" aria-hidden="true">
+  <div class="video-lightbox-inner">
+    <button class="lightbox-close" id="videoLightboxClose" aria-label="Затвори">&times;</button>
+    <video id="videoLightboxEl" autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false"></video>
+    <p class="lightbox-cap" id="videoLightboxCap"></p>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox" aria-hidden="true">
   <div class="lightbox-inner">
     <button class="lightbox-close" id="lightboxClose" aria-label="Затвори">&times;</button>
@@ -922,12 +980,12 @@
       </div>
       <div class="modal-section">
         <h3 class="h3">Видео</h3>
-        <div class="modal-proj-grid">
-          <div class="modal-proj-card modal-video-card">
+        <div class="video-gallery">
+          <div class="video-card-lg" data-video-src="farove-mercedes.mp4" data-video-cap="Mercedes C220" tabindex="0" role="button" aria-label="Отвори видео: Mercedes C220">
             <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-mercedes.mp4"></video>
             <div class="modal-proj-cap">Mercedes C220</div>
           </div>
-          <div class="modal-proj-card modal-video-card">
+          <div class="video-card-lg" data-video-src="farove-rav4.mp4" data-video-cap="Toyota RAV4" tabindex="0" role="button" aria-label="Отвори видео: Toyota RAV4">
             <video autoplay muted loop playsinline disablePictureInPicture disableRemotePlayback oncontextmenu="return false" src="farove-rav4.mp4"></video>
             <div class="modal-proj-cap">Toyota RAV4</div>
           </div>
@@ -1343,6 +1401,53 @@
         var idx = Math.round(strip.scrollLeft / strip.clientWidth);
         dots.forEach(function(d, i) { d.classList.toggle('active', i === idx); });
       });
+    });
+  })();
+
+  (function() {
+    var cards = document.querySelectorAll('.video-card-lg');
+    var vlb = document.getElementById('videoLightbox');
+    var vlbVideo = document.getElementById('videoLightboxEl');
+    var vlbCap = document.getElementById('videoLightboxCap');
+    var vlbClose = document.getElementById('videoLightboxClose');
+    if (!cards.length || !vlb) return;
+    var lastFocused = null;
+
+    function openVideoLightbox(card) {
+      var src = card.getAttribute('data-video-src');
+      var cap = card.getAttribute('data-video-cap') || '';
+      vlbVideo.src = src;
+      vlbCap.textContent = cap;
+      lastFocused = document.activeElement;
+      vlb.classList.add('open');
+      vlb.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      vlbClose.focus();
+    }
+    function closeVideoLightbox() {
+      vlb.classList.remove('open');
+      vlb.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      vlbVideo.removeAttribute('src');
+      vlbVideo.load();
+      if (lastFocused) lastFocused.focus();
+    }
+
+    cards.forEach(function(card) {
+      card.addEventListener('click', function() { openVideoLightbox(card); });
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openVideoLightbox(card);
+        }
+      });
+    });
+    vlbClose.addEventListener('click', closeVideoLightbox);
+    vlb.addEventListener('click', function(e) {
+      if (e.target === vlb) closeVideoLightbox();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && vlb.classList.contains('open')) closeVideoLightbox();
     });
   })();
 </script>
